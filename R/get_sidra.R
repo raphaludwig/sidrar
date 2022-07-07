@@ -89,6 +89,9 @@ get_sidra <- function(x,
                       format = 4,
                       digits = "default",
                       api = NULL) {
+  require(httr)
+  require(janitor)
+  require(tidyverse)
   
   if (is.null(api)) {
     
@@ -366,84 +369,15 @@ get_sidra <- function(x,
       
     }
     
-    path <- RCurl::getURL(paste0("https://apisidra.ibge.gov.br/values",
-                                 "/t/", x, "/",
-                                 path_geo,
-                                 "/p/", period,
-                                 "/v/", variable,
-                                 path_classific,
-                                 format, "/h/",
-                                 path_header,
-                                 digits),
-                          ssl.verifyhost=FALSE,
-                          ssl.verifypeer=FALSE)
-    
-    
-  } else {
-    
-    if (!is.character(api)) stop("The 'api' argument must be a character vector")
-    if (length(api) != 1) stop("The 'api' argument must have the length equals to 1")
-    
-    message("All others arguments are desconsidered when 'api' is informed")
-    
-    path <- RCurl::getURL(paste0("https://apisidra.ibge.gov.br/values",
-                                 api),
-                          ssl.verifyhost=FALSE,
-                          ssl.verifypeer=FALSE)
-    
-    path_header <- "y"
-    
-  }
+    url <- paste0("https://apisidra.ibge.gov.br/values", 
+                  "/t/", x, "/", path_geo, "/p/", 
+                  period, "/v/", variable, path_classific, format, 
+                  "/h/", path_header, digits)
+    resp <- httr::GET(url)
+    cont <- httr::content(resp, as = "text", type = "application/json")
+    final <- jsonlite::fromJSON(cont, flatten=TRUE) %>% 
+      janitor::row_to_names(row_number = 1)
+  } 
   
-
-  test1 <- try(rjson::fromJSON(path), silent=TRUE)
-  
-  
-  if (strsplit(path, " ")[[1]][2] == "P") {
-    
-    stop("The 'period' argument is misspecified.")
-    
-  } else if (strsplit(path, " ")[[1]][1] == "Tabela" &
-             strsplit(path, " ")[[1]][3] == "Tabela"){
-    
-    ntable <- strsplit(path, " ")[[1]][2]
-    ntable <- substr(ntable, 1, nchar(ntable)-1)
-    
-    stop("This table does not exists.")
-    
-  } else if (strsplit(path, " ")[[1]][2] == "V") {
-    
-    stop(sprintf("The table %s does not contain the %s variable", x, variable))
-    
-  } else if (grepl("Server Error", path)) {
-    
-    stop("Server error: Some argument is misspecified or (probabily) The query will result in a table with more than 20k values. 
-         In this case, you may address to the SIDRA's site and request the data manually to be delivered by an email account.")
-  
-  } else if ('try-error' %in% class(test1)) {
-    
-    stop(path)
-    
-  } else {
-    
-    path <- rjson::fromJSON(path)
-    path <- as.data.frame(do.call("rbind", path))
-    
-    path <- as.data.frame(lapply(path, unlist), stringsAsFactors = FALSE)
-
-    if (path_header == "y"){
-      
-      colnames(path) <- unlist(path[1, ])
-      path <- path[-1, ]
-      
-    }
-    
-    id <- which(colnames(path) == "V" | colnames(path) == "Valor")
-    
-    path[ ,id] = suppressWarnings(ifelse(unlist(path[ ,id]) != "..", as.numeric(unlist(path[ ,id])), NA))
-    
-  }
-  
-  return(path)
-  
+  return(final)
 }
