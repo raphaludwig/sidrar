@@ -377,7 +377,7 @@ get_sidra <- function(x,
     cont <- httr::content(resp, as = "text", type = "application/json")
     final <- jsonlite::fromJSON(cont, flatten=TRUE) %>% 
       janitor::row_to_names(row_number = 1) %>%
-      mutate(Valor=if_else(Valor=="...",NA,as.numeric(Valor)))
+      mutate(Valor=if_else(Valor=as.numeric(Valor))
   } 
   
   return(final)
