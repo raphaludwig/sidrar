@@ -374,7 +374,7 @@ get_sidra <- function(x,
                   period, "/v/", variable, path_classific, format, 
                   "/h/", path_header, digits)
     resp <- httr::GET(url)
-    cont <- httr::content(resp, as = "text", type = "application/json")
+    cont <- httr::content(resp, as = "text", type = "application/json",encoding = "UTF-8")
     final <- 
     suppressWarnings(jsonlite::fromJSON(cont, flatten=TRUE) %>% 
       janitor::row_to_names(row_number = 1) %>%
